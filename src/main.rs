@@ -72,25 +72,54 @@ where
     current_state: NixieState,
     previous_state: NixieState,
     i2c_dev: i2c::I2c<'a, T, Async>,
+    digitmap: [[(Address, Channel); 10]; 6],
 }
 
 impl<'a, T> Display<'a, T>
 where
     T: Instance,
 {
-    fn new(i2c_dev: i2c::I2c<'a, T, Async>) -> Self {
+    fn new(i2c_dev: i2c::I2c<'a, T, Async>, digitmap: [[(Address, Channel); 10]; 6]) -> Self {
         Display {
             current_state: NixieState::default(),
             previous_state: NixieState::blank(),
             i2c_dev,
+            digitmap,
         }
     }
-    async fn wipe(mut self) -> Self {
-        for i in 1u8..=6 {
+    async fn setup(mut self) -> Self {
+        for i in 65u8..=69 {
             let mut pwm = Pca9685::new(self.i2c_dev, Address::from(i)).unwrap();
             pwm.enable().await.unwrap();
+            pwm.set_prescale(100).await.unwrap();
+            self.i2c_dev = pwm.destroy();
+        }
+        self
+    }
+    async fn wipe(mut self) -> Self {
+        for i in 65u8..=69 {
+            let mut pwm = Pca9685::new(self.i2c_dev, Address::from(i)).unwrap();
             pwm.set_channel_on_off(Channel::All, 0, 0).await.unwrap();
             self.i2c_dev = pwm.destroy()
+        }
+        self
+    }
+    async fn show(mut self, state: NixieState) -> Self {
+        self.previous_state = self.current_state;
+        self.current_state = state;
+        for (digit, digit_val) in self.previous_state.digits.iter().enumerate() {
+            let digit_int = *digit_val as usize;
+            let (address, channel): (Address, Channel) = self.digitmap[digit][digit_int];
+            let mut pwm = Pca9685::new(self.i2c_dev, address).unwrap();
+            pwm.set_channel_on_off(channel, 0, 0).await.unwrap();
+            self.i2c_dev = pwm.destroy();
+        }
+        for (digit, digit_val) in self.current_state.digits.iter().enumerate() {
+            let digit_int = *digit_val as usize;
+            let (address, channel): (Address, Channel) = self.digitmap[digit][digit_int];
+            let mut pwm = Pca9685::new(self.i2c_dev, address).unwrap();
+            pwm.set_channel_on_off(channel, 0, 0).await.unwrap();
+            self.i2c_dev = pwm.destroy();
         }
         self
     }
@@ -98,32 +127,98 @@ where
 
 #[embassy_executor::main]
 async fn main(_spawner: Spawner) {
+    let a = [
+        Address::from(65),
+        Address::from(66),
+        Address::from(67),
+        Address::from(68),
+        Address::from(69),
+    ];
+    let digit_map = [
+        [
+            (a[4], Channel::C0),
+            (a[4], Channel::C1),
+            (a[4], Channel::C2),
+            (a[4], Channel::C3),
+            (a[4], Channel::C4),
+            (a[4], Channel::C5),
+            (a[4], Channel::C6),
+            (a[4], Channel::C7),
+            (a[4], Channel::C8),
+            (a[4], Channel::C9),
+        ],
+        [
+            (a[3], Channel::C0),
+            (a[3], Channel::C1),
+            (a[3], Channel::C2),
+            (a[3], Channel::C3),
+            (a[3], Channel::C4),
+            (a[3], Channel::C5),
+            (a[3], Channel::C6),
+            (a[3], Channel::C7),
+            (a[3], Channel::C8),
+            (a[3], Channel::C9),
+        ],
+        [
+            (a[2], Channel::C0),
+            (a[2], Channel::C1),
+            (a[2], Channel::C2),
+            (a[2], Channel::C3),
+            (a[2], Channel::C4),
+            (a[2], Channel::C5),
+            (a[2], Channel::C6),
+            (a[2], Channel::C7),
+            (a[2], Channel::C8),
+            (a[2], Channel::C9),
+        ],
+        [
+            (a[1], Channel::C0),
+            (a[1], Channel::C1),
+            (a[1], Channel::C2),
+            (a[1], Channel::C3),
+            (a[1], Channel::C4),
+            (a[1], Channel::C5),
+            (a[1], Channel::C6),
+            (a[1], Channel::C7),
+            (a[1], Channel::C8),
+            (a[1], Channel::C9),
+        ],
+        [
+            (a[0], Channel::C0),
+            (a[0], Channel::C1),
+            (a[0], Channel::C2),
+            (a[0], Channel::C3),
+            (a[0], Channel::C4),
+            (a[0], Channel::C5),
+            (a[0], Channel::C6),
+            (a[0], Channel::C7),
+            (a[0], Channel::C8),
+            (a[0], Channel::C9),
+        ],
+        [
+            (a[0], Channel::C12),
+            (a[0], Channel::C13),
+            (a[0], Channel::C14),
+            (a[0], Channel::C15),
+            (a[1], Channel::C12),
+            (a[1], Channel::C13),
+            (a[2], Channel::C12),
+            (a[2], Channel::C13),
+            (a[2], Channel::C14),
+            (a[2], Channel::C15),
+        ],
+    ];
     let p = embassy_rp::init(Default::default());
     let mut gp3 = Output::new(p.PIN_3, Level::Low);
     let mut button = Input::new(p.PIN_7, Pull::Up);
     let mut ext_clk = Output::new(p.PIN_2, Level::Low);
+    ext_clk.set_low();
+    gp3.set_high();
     let mut dev = i2c::I2c::new_async(p.I2C0, p.PIN_21, p.PIN_20, Irqs, i2c::Config::default());
-    for addr_int in 65u8..=69 {
-        let address = Address::from(addr_int);
-        let mut pwm = Pca9685::new(dev, address).unwrap();
-        info!("led on!");
-        // button.wait_for_low().await;
-        gp3.set_high();
-        ext_clk.set_low();
-        pwm.set_prescale(100).await.unwrap();
-        pwm.enable().await.unwrap();
-        pwm.set_channel_on_off(Channel::All, 0, 0).await.unwrap();
-        pwm.set_channel_on_off(Channel::try_from(7u8).unwrap(), 0, 4095)
-            .await
-            .unwrap();
-        if addr_int == 65u8 {
-            pwm.set_channel_on_off(Channel::try_from(15u8).unwrap(), 0, 4095)
-                .await
-                .unwrap();
-        }
-        Timer::after_millis(100).await;
-        dev = pwm.destroy();
-    }
+    let mut disp = Display::new(dev, digit_map);
+    disp = disp.setup().await;
+    disp = disp.wipe().await;
+    disp = disp.show(NixieState::new(['0'; 6], [false; 12])).await;
     loop {
         Timer::after_millis(500).await;
     }
