@@ -108,17 +108,21 @@ where
         self.previous_state = self.current_state;
         self.current_state = state;
         for (digit, digit_val) in self.previous_state.digits.iter().enumerate() {
-            let digit_int = *digit_val as usize;
+            let digit_int = (*digit_val as usize) - 48;
+            debug!("{}", digit_int);
+            debug!("{}", digit);
             let (address, channel): (Address, Channel) = self.digitmap[digit][digit_int];
             let mut pwm = Pca9685::new(self.i2c_dev, address).unwrap();
             pwm.set_channel_on_off(channel, 0, 0).await.unwrap();
             self.i2c_dev = pwm.destroy();
         }
         for (digit, digit_val) in self.current_state.digits.iter().enumerate() {
-            let digit_int = *digit_val as usize;
+            let digit_int = (*digit_val as usize) - 48;
+            debug!("{}", digit_int);
+            debug!("{}", digit);
             let (address, channel): (Address, Channel) = self.digitmap[digit][digit_int];
             let mut pwm = Pca9685::new(self.i2c_dev, address).unwrap();
-            pwm.set_channel_on_off(channel, 0, 0).await.unwrap();
+            pwm.set_channel_on_off(channel, 0, 4095).await.unwrap();
             self.i2c_dev = pwm.destroy();
         }
         self
@@ -128,84 +132,84 @@ where
 #[embassy_executor::main]
 async fn main(_spawner: Spawner) {
     let a = [
-        Address::from(65),
-        Address::from(66),
-        Address::from(67),
-        Address::from(68),
-        Address::from(69),
+        Address::from(65u8),
+        Address::from(66u8),
+        Address::from(67u8),
+        Address::from(68u8),
+        Address::from(69u8),
     ];
     let digit_map = [
         [
-            (a[4], Channel::C0),
             (a[4], Channel::C1),
-            (a[4], Channel::C2),
-            (a[4], Channel::C3),
-            (a[4], Channel::C4),
-            (a[4], Channel::C5),
-            (a[4], Channel::C6),
-            (a[4], Channel::C7),
-            (a[4], Channel::C8),
+            (a[4], Channel::C0),
             (a[4], Channel::C9),
+            (a[4], Channel::C8),
+            (a[4], Channel::C7),
+            (a[4], Channel::C6),
+            (a[4], Channel::C5),
+            (a[4], Channel::C4),
+            (a[4], Channel::C3),
+            (a[4], Channel::C2),
         ],
         [
-            (a[3], Channel::C0),
             (a[3], Channel::C1),
-            (a[3], Channel::C2),
-            (a[3], Channel::C3),
-            (a[3], Channel::C4),
-            (a[3], Channel::C5),
-            (a[3], Channel::C6),
-            (a[3], Channel::C7),
-            (a[3], Channel::C8),
+            (a[3], Channel::C0),
             (a[3], Channel::C9),
+            (a[3], Channel::C8),
+            (a[3], Channel::C7),
+            (a[3], Channel::C6),
+            (a[3], Channel::C5),
+            (a[3], Channel::C4),
+            (a[3], Channel::C3),
+            (a[3], Channel::C2),
         ],
         [
-            (a[2], Channel::C0),
             (a[2], Channel::C1),
-            (a[2], Channel::C2),
-            (a[2], Channel::C3),
-            (a[2], Channel::C4),
-            (a[2], Channel::C5),
-            (a[2], Channel::C6),
-            (a[2], Channel::C7),
-            (a[2], Channel::C8),
+            (a[2], Channel::C0),
             (a[2], Channel::C9),
+            (a[2], Channel::C8),
+            (a[2], Channel::C7),
+            (a[2], Channel::C6),
+            (a[2], Channel::C5),
+            (a[2], Channel::C4),
+            (a[2], Channel::C3),
+            (a[2], Channel::C2),
         ],
         [
-            (a[1], Channel::C0),
             (a[1], Channel::C1),
-            (a[1], Channel::C2),
-            (a[1], Channel::C3),
-            (a[1], Channel::C4),
-            (a[1], Channel::C5),
-            (a[1], Channel::C6),
-            (a[1], Channel::C7),
-            (a[1], Channel::C8),
+            (a[1], Channel::C0),
             (a[1], Channel::C9),
+            (a[1], Channel::C8),
+            (a[1], Channel::C7),
+            (a[1], Channel::C6),
+            (a[1], Channel::C5),
+            (a[1], Channel::C4),
+            (a[1], Channel::C3),
+            (a[1], Channel::C2),
         ],
         [
-            (a[0], Channel::C0),
             (a[0], Channel::C1),
-            (a[0], Channel::C2),
-            (a[0], Channel::C3),
-            (a[0], Channel::C4),
-            (a[0], Channel::C5),
-            (a[0], Channel::C6),
-            (a[0], Channel::C7),
-            (a[0], Channel::C8),
+            (a[0], Channel::C0),
             (a[0], Channel::C9),
+            (a[0], Channel::C8),
+            (a[0], Channel::C7),
+            (a[0], Channel::C6),
+            (a[0], Channel::C5),
+            (a[0], Channel::C4),
+            (a[0], Channel::C3),
+            (a[0], Channel::C2),
         ],
         [
-            (a[0], Channel::C12),
-            (a[0], Channel::C13),
-            (a[0], Channel::C14),
-            (a[0], Channel::C15),
-            (a[1], Channel::C12),
-            (a[1], Channel::C13),
-            (a[2], Channel::C12),
             (a[2], Channel::C13),
-            (a[2], Channel::C14),
+            (a[2], Channel::C12),
+            (a[1], Channel::C13),
+            (a[1], Channel::C12),
+            (a[0], Channel::C15),
+            (a[0], Channel::C14),
+            (a[0], Channel::C13),
+            (a[0], Channel::C12),
             (a[2], Channel::C15),
+            (a[2], Channel::C14),
         ],
     ];
     let p = embassy_rp::init(Default::default());
