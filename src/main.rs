@@ -100,6 +100,7 @@ where
         for i in 65u8..=69 {
             let mut pwm = Pca9685::new(self.i2c_dev, Address::from(i)).unwrap();
             pwm.set_channel_on_off(Channel::All, 0, 0).await.unwrap();
+            pwm.enable().await.unwrap();
             self.i2c_dev = pwm.destroy()
         }
         self
@@ -111,11 +112,11 @@ where
             let digit_int = (*digit_val as usize) - 48;
             debug!("digit_int: {}", digit_int);
             debug!("digit: {}", digit);
-            Timer::after_secs(1).await;
             let (address, channel): (Address, Channel) = self.digitmap[digit][digit_int];
             debug!("address: {:?}", Debug2Format(&address));
             debug!("channel: {:?}", Debug2Format(&channel));
             let mut pwm = Pca9685::new(self.i2c_dev, address).unwrap();
+            pwm.enable().await.unwrap();
             pwm.set_channel_on_off(channel, 0, 0).await.unwrap();
             self.i2c_dev = pwm.destroy();
         }
@@ -127,6 +128,7 @@ where
             debug!("address: {:?}", Debug2Format(&address));
             debug!("channel: {:?}", Debug2Format(&channel));
             let mut pwm = Pca9685::new(self.i2c_dev, address).unwrap();
+            pwm.enable().await.unwrap();
             pwm.set_channel_on_off(channel, 0, 4095).await.unwrap();
             self.i2c_dev = pwm.destroy();
         }
@@ -227,7 +229,9 @@ async fn main(_spawner: Spawner) {
     let mut disp = Display::new(dev, digit_map);
     disp = disp.setup().await;
     disp = disp.wipe().await;
-    disp = disp.show(NixieState::new(['0'; 6], [false; 12])).await;
+    disp = disp
+        .show(NixieState::new(['0', '1', '2', '3', '4', '5'], [false; 12]))
+        .await;
     loop {
         Timer::after_millis(500).await;
     }
