@@ -40,11 +40,11 @@ bind_interrupts!(struct Irqs {
 }
 );
 
+#[derive(Format)]
 pub struct NixieState {
     digits: [char; 6],
     commas: [bool; 12],
 }
-
 impl NixieState {
     pub fn new(digits: [char; 6], commas: [bool; 12]) -> Self {
         Self { digits, commas }
@@ -109,9 +109,12 @@ where
         self.current_state = state;
         for (digit, digit_val) in self.previous_state.digits.iter().enumerate() {
             let digit_int = (*digit_val as usize) - 48;
-            debug!("{}", digit_int);
-            debug!("{}", digit);
+            debug!("digit_int: {}", digit_int);
+            debug!("digit: {}", digit);
+            Timer::after_secs(1).await;
             let (address, channel): (Address, Channel) = self.digitmap[digit][digit_int];
+            debug!("address: {:?}", Debug2Format(&address));
+            debug!("channel: {:?}", Debug2Format(&channel));
             let mut pwm = Pca9685::new(self.i2c_dev, address).unwrap();
             pwm.set_channel_on_off(channel, 0, 0).await.unwrap();
             self.i2c_dev = pwm.destroy();
@@ -121,6 +124,8 @@ where
             debug!("{}", digit_int);
             debug!("{}", digit);
             let (address, channel): (Address, Channel) = self.digitmap[digit][digit_int];
+            debug!("address: {:?}", Debug2Format(&address));
+            debug!("channel: {:?}", Debug2Format(&channel));
             let mut pwm = Pca9685::new(self.i2c_dev, address).unwrap();
             pwm.set_channel_on_off(channel, 0, 4095).await.unwrap();
             self.i2c_dev = pwm.destroy();
