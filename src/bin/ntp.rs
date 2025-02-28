@@ -5,20 +5,20 @@
 #![no_main]
 #![allow(async_fn_in_trait)]
 
-use core::net::{IpAddr, SocketAddr};
+use core::net::SocketAddr;
 
 use cyw43::JoinOptions;
 use cyw43_pio::{PioSpi, RM2_CLOCK_DIVIDER};
 use defmt::*;
 use embassy_executor::Spawner;
 use embassy_net::udp::{PacketMetadata, UdpSocket};
-use embassy_net::{dns::DnsQueryType, Config, IpEndpoint, StackResources};
+use embassy_net::{dns::DnsQueryType, Config, StackResources};
 use embassy_rp::bind_interrupts;
 use embassy_rp::clocks::RoscRng;
 use embassy_rp::gpio::{Level, Output};
 use embassy_rp::peripherals::{DMA_CH0, PIO0};
 use embassy_rp::pio::{InterruptHandler, Pio};
-use embassy_time::{Duration, Timer};
+use embassy_time::Timer;
 use rand::RngCore;
 use sntpc::{get_time, NtpContext, NtpTimestampGenerator};
 use static_cell::StaticCell;
@@ -144,6 +144,15 @@ async fn main(spawner: Spawner) {
         Timer::after_millis(100).await;
     }
     info!("DHCP is now up!");
+    let hwadd = stack.hardware_address();
+    let ipadd = stack.config_v4();
+    let ip6add = stack.config_v6();
+    info!(
+        "Mac: {} | IP: {} | IP6: {}",
+        Debug2Format(&hwadd),
+        Debug2Format(&ipadd),
+        Debug2Format(&ip6add)
+    );
 
     // And now we can use it!
 
@@ -152,21 +161,21 @@ async fn main(spawner: Spawner) {
     let mut rx_meta = [PacketMetadata::EMPTY; 16];
     let mut tx_meta = [PacketMetadata::EMPTY; 16];
 
-    loop {
-        let mut socket = UdpSocket::new(
-            stack,
-            &mut rx_meta,
-            &mut rx_buffer,
-            &mut tx_meta,
-            &mut tx_buffer,
-        );
-        let context = NtpContext::new(Timestamp::default());
-        let server_address = stack
-            .dns_query("pool.ntp.org", DnsQueryType::A)
-            .await
-            .unwrap()[0];
-        let socket_addr = SocketAddr::new(server_address.into(), 123);
-        let response = get_time(socket_addr, &socket, context).await.unwrap();
-        debug!("{:?}", response)
-    }
+    let mut socket = UdpSocket::new(
+        stack,
+        &mut rx_meta,
+        &mut rx_buffer,
+        &mut tx_meta,
+        &mut tx_buffer,
+    );
+    let context = NtpContext::new(Timestamp::default());
+    let server_address = stack
+        .dns_query("papylos.hacklab", DnsQueryType::A)
+        .await
+        .unwrap()[0];
+    let socket_addr = SocketAddr::new(server_address.into(), 123);
+    let socket_result = socket.bind(socket_addr);
+    info!("socket result{:?}", socket_result);
+    let response = get_time(socket_addr, &socket, context).await.unwrap();
+    info!("response{:?}", response);
 }
